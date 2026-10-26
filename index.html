@@ -1,1 +1,883 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FITNESS TRACKER</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="pb-24 max-w-md mx-auto min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-between">
+
+    <!-- Header -->
+    <header class="p-4 bg-slate-800/80 backdrop-blur sticky top-0 z-50 border-b border-slate-700/50 flex justify-between items-center">
+        <div>
+            <h1 class="font-bold text-lg text-emerald-400 flex items-center gap-2">
+                <i class="fa-solid fa-heart-pulse"></i> FITNESS TRACKER
+            </h1>
+            <p class="text-xs text-slate-400" id="current-date-display"></p>
+        </div>
+        <button onclick="switchTab('settings')" class="text-slate-400 hover:text-white p-2">
+            <i class="fa-solid fa-gear text-lg"></i>
+        </button>
+    </header>
+
+    <!-- Main Content Containers -->
+    <main class="p-4 flex-grow space-y-6">
+
+        <!-- DASHBOARD TAB -->
+        <section id="tab-dashboard" class="space-y-4">
+            <!-- Target Summary Card -->
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-sm relative overflow-hidden">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <span class="text-xs text-slate-400">目標体重まで</span>
+                        <div class="text-2xl font-bold text-slate-100" id="dash-weight-remaining">-- kg</div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs text-slate-400">残り日数</span>
+                        <div class="text-xl font-bold text-emerald-400" id="dash-days-remaining">-- 日</div>
+                    </div>
+                </div>
+                <!-- Progress Bar -->
+                <div class="w-full bg-slate-700 rounded-full h-2.5 mb-2 overflow-hidden">
+                    <div id="dash-progress-bar" class="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <div class="flex justify-between text-xs text-slate-400">
+                    <span>開始: <span id="dash-start-weight">--</span>kg</span>
+                    <span>現在: <span id="dash-current-weight">--</span>kg</span>
+                    <span>目標: <span id="dash-target-weight">--</span>kg</span>
+                </div>
+            </div>
+
+            <!-- Quick Log Buttons -->
+            <div class="grid grid-cols-3 gap-2">
+                <button onclick="switchTab('weight')" class="bg-slate-800 border border-slate-700 p-3 rounded-lg flex flex-col items-center gap-1 active:bg-slate-700">
+                    <i class="fa-solid fa-weight-scale text-emerald-400"></i>
+                    <span class="text-xs font-medium">体重記録</span>
+                </button>
+                <button onclick="switchTab('run')" class="bg-slate-800 border border-slate-700 p-3 rounded-lg flex flex-col items-center gap-1 active:bg-slate-700">
+                    <i class="fa-solid fa-person-running text-blue-400"></i>
+                    <span class="text-xs font-medium">ラン記録</span>
+                </button>
+                <button onclick="switchTab('workout')" class="bg-slate-800 border border-slate-700 p-3 rounded-lg flex flex-col items-center gap-1 active:bg-slate-700">
+                    <i class="fa-solid fa-dumbbell text-purple-400"></i>
+                    <span class="text-xs font-medium">筋トレ記録</span>
+                </button>
+            </div>
+
+            <!-- Weight Chart Preview -->
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-sm font-semibold mb-3 text-slate-300">体重推移 (直近)</h3>
+                <div class="h-40 w-full">
+                    <canvas id="weightChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Recent Run -->
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-sm font-semibold text-slate-300">最近のランニング</h3>
+                    <button onclick="switchTab('run-list')" class="text-xs text-blue-400">すべて見る</button>
+                </div>
+                <div id="dash-recent-run" class="text-sm text-slate-400">
+                    記録がありません
+                </div>
+            </div>
+
+            <!-- Today's Workout Status -->
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-sm font-semibold text-slate-300">今日の筋トレ・補強</h3>
+                    <button onclick="switchTab('workout')" class="text-xs text-purple-400">記録する</button>
+                </div>
+                <div id="dash-workout-status" class="text-sm text-slate-400">
+                    未実施
+                </div>
+            </div>
+        </section>
+
+        <!-- WEIGHT TAB -->
+        <section id="tab-weight" class="space-y-4 hidden">
+            <h2 class="text-base font-bold text-emerald-400 border-b border-slate-700 pb-2">体重の記録</h2>
+            <form id="weight-form" onsubmit="saveWeight(event)" class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-4">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">日付</label>
+                    <input type="date" id="weight-date" required class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">体重 (kg)</label>
+                    <input type="number" step="0.1" id="weight-value" required placeholder="65.0" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg text-sm transition">保存する</button>
+            </form>
+
+            <!-- History List -->
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-sm font-semibold text-slate-300 mb-3">過去の記録</h3>
+                <div id="weight-history-list" class="space-y-2 max-h-60 overflow-y-auto no-scrollbar"></div>
+            </div>
+        </section>
+
+        <!-- RUN TAB -->
+        <section id="tab-run" class="space-y-4 hidden">
+            <h2 class="text-base font-bold text-blue-400 border-b border-slate-700 pb-2">ランニング日誌</h2>
+
+            <!-- Easy Text Import Area -->
+            <div class="bg-slate-800/90 p-3.5 rounded-xl border border-blue-500/40 space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-blue-300 flex items-center gap-1">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> かんたんテキスト自動入力
+                    </span>
+                </div>
+                <textarea id="run-text-import" rows="3" placeholder="Garmin等のテキストを貼り付け..." class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-white focus:outline-none focus:border-blue-500"></textarea>
+                <button type="button" onclick="parseRunText()" class="w-full bg-blue-600/80 hover:bg-blue-600 text-white text-xs font-bold py-2 rounded transition">
+                    テキストから各欄へ自動解析
+                </button>
+            </div>
+
+            <form id="run-form" onsubmit="saveRun(event)" class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-3">
+                <input type="hidden" id="run-id">
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">日付</label>
+                        <input type="date" id="run-date" required class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">距離 (km)</label>
+                        <input type="number" step="0.01" id="run-distance" placeholder="10.00" oninput="calcPace()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">タイム (hh:mm:ss または mm:ss)</label>
+                        <input type="text" id="run-time" placeholder="50:00" onchange="calcPace()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">平均ペース (分/km)</label>
+                        <input type="text" id="run-pace" placeholder="自動計算" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white bg-slate-950/50">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">平均心拍数 (bpm)</label>
+                        <input type="number" id="run-hr" placeholder="145" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">使用シューズ</label>
+                        <input type="text" id="run-shoes" placeholder="ペガサス 40" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">体感的なきつさ (1-10)</label>
+                        <select id="run-rpe" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                            <option value="">未選択</option>
+                            <option value="1">1 - 非常に楽</option>
+                            <option value="2">2 - 楽</option>
+                            <option value="3">3 - 適度</option>
+                            <option value="4">4 - ややきつい</option>
+                            <option value="5">5 - きつい</option>
+                            <option value="6">6 - かなりきつい</option>
+                            <option value="7">7 - 限界に近い</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">疲労感・体調</label>
+                        <select id="run-condition" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                            <option value="">未選択</option>
+                            <option value="良好">良好</option>
+                            <option value="普通">普通</option>
+                            <option value="疲労あり">疲労あり</option>
+                            <option value="重い">身体が重い</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">脚の状態・違和感・痛み</label>
+                    <input type="text" id="run-legs" placeholder="右膝に軽い張り" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                </div>
+
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">天候・気温</label>
+                    <input type="text" id="run-weather" placeholder="晴れ 18°C" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                </div>
+
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">自由記入メモ</label>
+                    <textarea id="run-notes" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white"></textarea>
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="submit" class="flex-grow bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-lg text-sm transition">保存する</button>
+                    <button type="button" onclick="clearRunForm()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold px-4 py-2.5 rounded-lg text-sm transition">クリア</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- RUN LIST TAB -->
+        <section id="tab-run-list" class="space-y-4 hidden">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                <h2 class="text-base font-bold text-blue-400">ランニング履歴</h2>
+                <button onclick="switchTab('run')" class="text-xs bg-blue-600 text-white px-2.5 py-1 rounded">新規追加</button>
+            </div>
+            <div id="run-history-container" class="space-y-3"></div>
+        </section>
+
+        <!-- WORKOUT TAB -->
+        <section id="tab-workout" class="space-y-4 hidden">
+            <h2 class="text-base font-bold text-purple-400 border-b border-slate-700 pb-2">筋トレ・補強運動</h2>
+            
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-4">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">日付</label>
+                    <input type="date" id="workout-date" onchange="loadWorkoutForDate()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                </div>
+
+                <div id="workout-checklist" class="space-y-2">
+                    <!-- Checkbox items injected by JS -->
+                </div>
+
+                <button onclick="saveWorkout()" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-lg text-sm transition">この日の実施状況を保存</button>
+            </div>
+
+            <!-- Manage Workout Items -->
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-3">
+                <h3 class="text-sm font-semibold text-slate-300">種目の管理</h3>
+                <div class="flex gap-2">
+                    <input type="text" id="new-workout-item" placeholder="新しい種目名" class="flex-grow bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                    <button onclick="addWorkoutMenu()" class="bg-slate-700 hover:bg-slate-600 text-white text-xs px-3 py-2 rounded font-medium">追加</button>
+                </div>
+                <div id="workout-menu-management" class="space-y-1"></div>
+            </div>
+        </section>
+
+        <!-- SETTINGS / DATA TAB -->
+        <section id="tab-settings" class="space-y-4 hidden">
+            <h2 class="text-base font-bold text-slate-300 border-b border-slate-700 pb-2">目標設定・データ管理</h2>
+
+            <!-- Target Settings -->
+            <form id="target-form" onsubmit="saveTargets(event)" class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-3">
+                <h3 class="text-sm font-semibold text-emerald-400">目標・基本設定</h3>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">開始日</label>
+                        <input type="date" id="target-start-date" required class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">開始時体重 (kg)</label>
+                        <input type="number" step="0.1" id="target-start-weight" required class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">目標日</label>
+                        <input type="date" id="target-end-date" required class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">目標体重 (kg)</label>
+                        <input type="number" step="0.1" id="target-weight" required class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 rounded-lg text-sm transition">目標設定を更新</button>
+            </form>
+
+            <!-- AI Output & Backup -->
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-3">
+                <h3 class="text-sm font-semibold text-slate-300">データ出力・AI連携</h3>
+                <p class="text-xs text-slate-400">ChatGPTなどのAIにそのまま渡せる形式でデータを出力します。</p>
+
+                <button onclick="copyFormattedAIPrompt()" class="w-full bg-emerald-600/80 hover:bg-emerald-600 text-white font-bold py-2 rounded text-xs transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-copy"></i> AI分析用プロンプトをコピー
+                </button>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="exportJSON()" class="bg-slate-700 hover:bg-slate-600 text-white text-xs py-2 rounded font-medium">
+                        JSONバックアップ出力
+                    </button>
+                    <button onclick="exportCSV()" class="bg-slate-700 hover:bg-slate-600 text-white text-xs py-2 rounded font-medium">
+                        ラン記録 CSV出力
+                    </button>
+                </div>
+
+                <div class="border-t border-slate-700 pt-3">
+                    <label class="block text-xs text-slate-400 mb-1">バックアップから復元</label>
+                    <input type="file" id="import-file" accept=".json" onchange="importJSON(event)" class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-slate-700 file:text-slate-200">
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-slate-800/95 backdrop-blur border-t border-slate-700/80 grid grid-cols-5 py-2 px-1 text-center z-50">
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="flex flex-col items-center text-emerald-400">
+            <i class="fa-solid fa-chart-line text-lg"></i>
+            <span class="text-[10px] mt-0.5">トップ</span>
+        </button>
+        <button onclick="switchTab('weight')" id="nav-weight" class="flex flex-col items-center text-slate-400">
+            <i class="fa-solid fa-weight-scale text-lg"></i>
+            <span class="text-[10px] mt-0.5">体重</span>
+        </button>
+        <button onclick="switchTab('run')" id="nav-run" class="flex flex-col items-center text-slate-400">
+            <i class="fa-solid fa-person-running text-lg"></i>
+            <span class="text-[10px] mt-0.5">ラン記録</span>
+        </button>
+        <button onclick="switchTab('workout')" id="nav-workout" class="flex flex-col items-center text-slate-400">
+            <i class="fa-solid fa-dumbbell text-lg"></i>
+            <span class="text-[10px] mt-0.5">筋トレ</span>
+        </button>
+        <button onclick="switchTab('run-list')" id="nav-run-list" class="flex flex-col items-center text-slate-400">
+            <i class="fa-solid fa-list-check text-lg"></i>
+            <span class="text-[10px] mt-0.5">履歴</span>
+        </button>
+    </nav>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Storage Keys
+        const KEY_TARGETS = 'fit_targets';
+        const KEY_WEIGHTS = 'fit_weights';
+        const KEY_RUNS = 'fit_runs';
+        const KEY_WORKOUTS = 'fit_workouts';
+        const KEY_WORKOUT_MENU = 'fit_workout_menu';
+
+        // Default Data State
+        let targets = JSON.parse(localStorage.getItem(KEY_TARGETS)) || {
+            startDate: new Date().toISOString().split('T')[0],
+            startWeight: 70.0,
+            endDate: new Date(Date.now() + 90*24*60*60*1000).toISOString().split('T')[0],
+            targetWeight: 65.0
+        };
+
+        let weights = JSON.parse(localStorage.getItem(KEY_WEIGHTS)) || [];
+        let runs = JSON.parse(localStorage.getItem(KEY_RUNS)) || [];
+        let workouts = JSON.parse(localStorage.getItem(KEY_WORKOUTS)) || {};
+        let workoutMenu = JSON.parse(localStorage.getItem(KEY_WORKOUT_MENU)) || [
+            'スクワット', 'カーフレイズ', 'ヒップリフト', 'クラムシェル', '体幹トレーニング', 'ストレッチ・可動域運動'
+        ];
+
+        let weightChartInstance = null;
+
+        // Init App
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('current-date-display').textContent = today;
+            document.getElementById('weight-date').value = today;
+            document.getElementById('run-date').value = today;
+            document.getElementById('workout-date').value = today;
+
+            loadTargetSettingsUI();
+            renderDashboard();
+            renderWorkoutChecklist();
+            renderWorkoutMenuManagement();
+        });
+
+        // Navigation Switcher
+        function switchTab(tabId) {
+            const tabs = ['dashboard', 'weight', 'run', 'run-list', 'workout', 'settings'];
+            tabs.forEach(t => {
+                const el = document.getElementById(`tab-${t}`);
+                if(el) el.classList.add('hidden');
+                
+                const nav = document.getElementById(`nav-${t}`);
+                if(nav) {
+                    nav.classList.remove('text-emerald-400', 'text-blue-400', 'text-purple-400');
+                    nav.classList.add('text-slate-400');
+                }
+            });
+
+            const activeTab = document.getElementById(`tab-${tabId}`);
+            if(activeTab) activeTab.classList.remove('hidden');
+
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if(activeNav) {
+                activeNav.classList.remove('text-slate-400');
+                activeNav.classList.add('text-emerald-400');
+            }
+
+            if(tabId === 'dashboard') renderDashboard();
+            if(tabId === 'weight') renderWeightHistory();
+            if(tabId === 'run-list') renderRunHistory();
+            if(tabId === 'workout') loadWorkoutForDate();
+        }
+
+        // --- TARGETS & DASHBOARD ---
+        function loadTargetSettingsUI() {
+            document.getElementById('target-start-date').value = targets.startDate;
+            document.getElementById('target-start-weight').value = targets.startWeight;
+            document.getElementById('target-end-date').value = targets.endDate;
+            document.getElementById('target-weight').value = targets.targetWeight;
+        }
+
+        function saveTargets(e) {
+            e.preventDefault();
+            targets = {
+                startDate: document.getElementById('target-start-date').value,
+                startWeight: parseFloat(document.getElementById('target-start-weight').value),
+                endDate: document.getElementById('target-end-date').value,
+                targetWeight: parseFloat(document.getElementById('target-weight').value)
+            };
+            localStorage.setItem(KEY_TARGETS, JSON.stringify(targets));
+            alert('目標設定を更新しました');
+            renderDashboard();
+        }
+
+        function renderDashboard() {
+            // Calculate Days Remaining
+            const today = new Date();
+            const end = new Date(targets.endDate);
+            const diffTime = end - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            document.getElementById('dash-days-remaining').textContent = diffDays > 0 ? `${diffDays}` : '0';
+
+            // Calculate Weight Progress
+            const sortedWeights = [...weights].sort((a,b) => new Date(a.date) - new Date(b.date));
+            const currentWeight = sortedWeights.length > 0 ? sortedWeights[sortedWeights.length - 1].weight : targets.startWeight;
+            
+            const totalDiff = targets.startWeight - targets.targetWeight;
+            const currentDiff = targets.startWeight - currentWeight;
+            let progress = totalDiff !== 0 ? (currentDiff / totalDiff) * 100 : 0;
+            progress = Math.max(0, Math.min(100, progress)); // Clamp 0-100%
+
+            const remainingWeight = (currentWeight - targets.targetWeight).toFixed(1);
+
+            document.getElementById('dash-weight-remaining').textContent = `${remainingWeight > 0 ? remainingWeight : 0} kg`;
+            document.getElementById('dash-progress-bar').style.width = `${progress}%`;
+            document.getElementById('dash-start-weight').textContent = targets.startWeight;
+            document.getElementById('dash-current-weight').textContent = currentWeight;
+            document.getElementById('dash-target-weight').textContent = targets.targetWeight;
+
+            // Render Recent Run
+            const sortedRuns = [...runs].sort((a,b) => new Date(b.date) - new Date(a.date));
+            const recentRunEl = document.getElementById('dash-recent-run');
+            if(sortedRuns.length > 0) {
+                const r = sortedRuns[0];
+                recentRunEl.innerHTML = `
+                    <div class="flex justify-between items-center text-slate-200 font-medium">
+                        <span>${r.date}</span>
+                        <span class="text-blue-400 font-bold">${r.distance || '--'} km</span>
+                    </div>
+                    <div class="text-xs text-slate-400 mt-1 flex justify-between">
+                        <span>タイム: ${r.time || '--'}</span>
+                        <span>ペース: ${r.pace || '--'}</span>
+                        <span>心拍: ${r.hr ? r.hr + 'bpm' : '--'}</span>
+                    </div>
+                `;
+            } else {
+                recentRunEl.innerHTML = `<span class="text-xs text-slate-500">記録がありません</span>`;
+            }
+
+            // Render Workout Status
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayWorkout = workouts[todayStr] || {};
+            const completedCount = Object.values(todayWorkout).filter(Boolean).length;
+            const workoutEl = document.getElementById('dash-workout-status');
+            if(completedCount > 0) {
+                workoutEl.innerHTML = `<span class="text-emerald-400 font-medium">${completedCount} 種目 完了</span>`;
+            } else {
+                workoutEl.innerHTML = `<span class="text-slate-500">本日はまだ未実施です</span>`;
+            }
+
+            renderChart();
+        }
+
+        // --- WEIGHT LOGIC ---
+        function saveWeight(e) {
+            e.preventDefault();
+            const date = document.getElementById('weight-date').value;
+            const weight = parseFloat(document.getElementById('weight-value').value);
+
+            const index = weights.findIndex(w => w.date === date);
+            if(index >= 0) {
+                weights[index].weight = weight;
+            } else {
+                weights.push({ date, weight });
+            }
+
+            localStorage.setItem(KEY_WEIGHTS, JSON.stringify(weights));
+            document.getElementById('weight-value').value = '';
+            alert('体重を記録しました');
+            renderWeightHistory();
+            renderDashboard();
+        }
+
+        function renderWeightHistory() {
+            const list = document.getElementById('weight-history-list');
+            list.innerHTML = '';
+            const sorted = [...weights].sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            sorted.forEach(w => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center bg-slate-900/50 p-2 rounded text-xs border border-slate-800';
+                item.innerHTML = `
+                    <span class="text-slate-300">${w.date}</span>
+                    <span class="font-bold text-emerald-400">${w.weight} kg</span>
+                    <button onclick="deleteWeight('${w.date}')" class="text-slate-500 hover:text-rose-400 ml-2"><i class="fa-solid fa-trash"></i></button>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function deleteWeight(date) {
+            if(!confirm(`${date} の記録を削除しますか？`)) return;
+            weights = weights.filter(w => w.date !== date);
+            localStorage.setItem(KEY_WEIGHTS, JSON.stringify(weights));
+            renderWeightHistory();
+            renderDashboard();
+        }
+
+        function renderChart() {
+            const ctx = document.getElementById('weightChart').getContext('2d');
+            const sorted = [...weights].sort((a,b) => new Date(a.date) - new Date(b.date));
+            
+            const labels = sorted.map(w => w.date.slice(5)); // MM-DD
+            const data = sorted.map(w => w.weight);
+
+            if(weightChartInstance) weightChartInstance.destroy();
+
+            weightChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '体重 (kg)',
+                        data: data,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { display: false } },
+                        y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#1e293b' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // --- RUN LOGIC ---
+        function parseRunText() {
+            const text = document.getElementById('run-text-import').value;
+            if(!text.trim()) return;
+
+            // Date Parser (e.g. 10月21日)
+            const dateMatch = text.match(/(\d{1,2})月(\d{1,2})日/);
+            if(dateMatch) {
+                const now = new Date();
+                const month = dateMatch[1].padStart(2, '0');
+                const day = dateMatch[2].padStart(2, '0');
+                document.getElementById('run-date').value = `${now.getFullYear()}-${month}-${day}`;
+            }
+
+            // Distance Parser (e.g. 距離：8.61 km)
+            const distMatch = text.match(/距離[：:\s]*([\d\.]+)\s*km/i);
+            if(distMatch) document.getElementById('run-distance').value = distMatch[1];
+
+            // Time Parser (e.g. 合計タイム：58:36)
+            const timeMatch = text.match(/合計タイム[：:\s]*([\d:]+)/i);
+            if(timeMatch) document.getElementById('run-time').value = timeMatch[1];
+
+            // Pace Parser (e.g. 平均ペース：6:48 /km)
+            const paceMatch = text.match(/平均ペース[：:\s]*([\d:]+)\s*\/km/i);
+            if(paceMatch) document.getElementById('run-pace').value = paceMatch[1];
+
+            // Heart Rate Parser (e.g. 平均心拍数：131 bpm)
+            const hrMatch = text.match(/平均心拍数[：:\s]*(\d+)\s*bpm/i);
+            if(hrMatch) document.getElementById('run-hr').value = hrMatch[1];
+
+            // Weather Parser (e.g. 天気・気温：24°C)
+            const weatherMatch = text.match(/天気・気温[：:\s]*([^\n]+)/i);
+            if(weatherMatch) document.getElementById('run-weather').value = weatherMatch[1].trim();
+
+            // Set detail text into notes
+            document.getElementById('run-notes').value = text;
+            calcPace();
+            alert('テキストからデータを読み込みました');
+        }
+
+        function calcPace() {
+            const dist = parseFloat(document.getElementById('run-distance').value);
+            const timeStr = document.getElementById('run-time').value;
+
+            if(!dist || !timeStr) return;
+
+            const parts = timeStr.split(':').map(Number);
+            let totalSeconds = 0;
+            if(parts.length === 3) {
+                totalSeconds = parts[0]*3600 + parts[1]*60 + parts[2];
+            } else if(parts.length === 2) {
+                totalSeconds = parts[0]*60 + parts[1];
+            } else return;
+
+            const secPerKm = totalSeconds / dist;
+            const paceMin = Math.floor(secPerKm / 60);
+            const paceSec = Math.floor(secPerKm % 60);
+
+            document.getElementById('run-pace').value = `${paceMin}:${paceSec < 10 ? '0' : ''}${paceSec}`;
+        }
+
+        function saveRun(e) {
+            e.preventDefault();
+            const id = document.getElementById('run-id').value || Date.now().toString();
+            
+            const runData = {
+                id,
+                date: document.getElementById('run-date').value,
+                distance: document.getElementById('run-distance').value,
+                time: document.getElementById('run-time').value,
+                pace: document.getElementById('run-pace').value,
+                hr: document.getElementById('run-hr').value,
+                shoes: document.getElementById('run-shoes').value,
+                rpe: document.getElementById('run-rpe').value,
+                condition: document.getElementById('run-condition').value,
+                legs: document.getElementById('run-legs').value,
+                weather: document.getElementById('run-weather').value,
+                notes: document.getElementById('run-notes').value
+            };
+
+            const index = runs.findIndex(r => r.id === id);
+            if(index >= 0) runs[index] = runData;
+            else runs.push(runData);
+
+            localStorage.setItem(KEY_RUNS, JSON.stringify(runs));
+            alert('ランニング日誌を保存しました');
+            clearRunForm();
+            switchTab('run-list');
+        }
+
+        function clearRunForm() {
+            document.getElementById('run-id').value = '';
+            document.getElementById('run-form').reset();
+            document.getElementById('run-text-import').value = '';
+            document.getElementById('run-date').value = new Date().toISOString().split('T')[0];
+        }
+
+        function renderRunHistory() {
+            const container = document.getElementById('run-history-container');
+            container.innerHTML = '';
+            const sorted = [...runs].sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            if(sorted.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">過去のログはありません</p>`;
+                return;
+            }
+
+            sorted.forEach(r => {
+                const card = document.createElement('div');
+                card.className = 'bg-slate-800 p-3 rounded-xl border border-slate-700 text-xs space-y-2';
+                card.innerHTML = `
+                    <div class="flex justify-between items-center font-bold text-slate-200 border-b border-slate-700/50 pb-1.5">
+                        <span>${r.date}</span>
+                        <span class="text-blue-400 text-sm">${r.distance || '0'} km</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1 text-slate-400">
+                        <div>タイム: <span class="text-slate-200">${r.time || '-'}</span></div>
+                        <div>ペース: <span class="text-slate-200">${r.pace || '-'}</span></div>
+                        <div>心拍: <span class="text-slate-200">${r.hr ? r.hr+' bpm' : '-'}</span></div>
+                    </div>
+                    ${r.shoes ? `<div class="text-slate-400">シューズ: <span class="text-slate-300">${r.shoes}</span></div>` : ''}
+                    ${r.legs ? `<div class="text-slate-400">脚の状態: <span class="text-amber-300">${r.legs}</span></div>` : ''}
+                    ${r.notes ? `<div class="bg-slate-900/60 p-2 rounded text-slate-300 whitespace-pre-wrap">${r.notes}</div>` : ''}
+                    <div class="flex justify-end gap-3 pt-1 border-t border-slate-700/30 text-slate-400">
+                        <button onclick="editRun('${r.id}')" class="hover:text-blue-400"><i class="fa-solid fa-pen"></i> 編集</button>
+                        <button onclick="deleteRun('${r.id}')" class="hover:text-rose-400"><i class="fa-solid fa-trash"></i> 削除</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function editRun(id) {
+            const r = runs.find(item => item.id === id);
+            if(!r) return;
+
+            document.getElementById('run-id').value = r.id;
+            document.getElementById('run-date').value = r.date;
+            document.getElementById('run-distance').value = r.distance || '';
+            document.getElementById('run-time').value = r.time || '';
+            document.getElementById('run-pace').value = r.pace || '';
+            document.getElementById('run-hr').value = r.hr || '';
+            document.getElementById('run-shoes').value = r.shoes || '';
+            document.getElementById('run-rpe').value = r.rpe || '';
+            document.getElementById('run-condition').value = r.condition || '';
+            document.getElementById('run-legs').value = r.legs || '';
+            document.getElementById('run-weather').value = r.weather || '';
+            document.getElementById('run-notes').value = r.notes || '';
+
+            switchTab('run');
+        }
+
+        function deleteRun(id) {
+            if(!confirm('このラン記録を削除しますか？')) return;
+            runs = runs.filter(r => r.id !== id);
+            localStorage.setItem(KEY_RUNS, JSON.stringify(runs));
+            renderRunHistory();
+            renderDashboard();
+        }
+
+        // --- WORKOUT LOGIC ---
+        function renderWorkoutChecklist() {
+            const container = document.getElementById('workout-checklist');
+            container.innerHTML = '';
+
+            const date = document.getElementById('workout-date').value;
+            const currentData = workouts[date] || {};
+
+            workoutMenu.forEach(item => {
+                const checked = currentData[item] ? 'checked' : '';
+                const div = document.createElement('label');
+                div.className = 'flex items-center gap-3 bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/60 text-sm text-slate-200 cursor-pointer';
+                div.innerHTML = `
+                    <input type="checkbox" data-item="${item}" ${checked} class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-800 border-slate-600">
+                    <span>${item}</span>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function loadWorkoutForDate() {
+            renderWorkoutChecklist();
+        }
+
+        function saveWorkout() {
+            const date = document.getElementById('workout-date').value;
+            const checkboxes = document.querySelectorAll('#workout-checklist input[type="checkbox"]');
+            
+            const dayData = {};
+            checkboxes.forEach(cb => {
+                dayData[cb.dataset.item] = cb.checked;
+            });
+
+            workouts[date] = dayData;
+            localStorage.setItem(KEY_WORKOUTS, JSON.stringify(workouts));
+            alert(`${date} の筋トレ記録を保存しました`);
+            renderDashboard();
+        }
+
+        function renderWorkoutMenuManagement() {
+            const container = document.getElementById('workout-menu-management');
+            container.innerHTML = '';
+
+            workoutMenu.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex justify-between items-center text-xs bg-slate-900/40 p-1.5 px-2 rounded';
+                div.innerHTML = `
+                    <span class="text-slate-300">${item}</span>
+                    <button onclick="removeWorkoutMenu(${index})" class="text-slate-500 hover:text-rose-400"><i class="fa-solid fa-xmark"></i></button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function addWorkoutMenu() {
+            const input = document.getElementById('new-workout-item');
+            const val = input.value.trim();
+            if(!val) return;
+
+            workoutMenu.push(val);
+            localStorage.setItem(KEY_WORKOUT_MENU, JSON.stringify(workoutMenu));
+            input.value = '';
+            renderWorkoutMenuManagement();
+            renderWorkoutChecklist();
+        }
+
+        function removeWorkoutMenu(index) {
+            workoutMenu.splice(index, 1);
+            localStorage.setItem(KEY_WORKOUT_MENU, JSON.stringify(workoutMenu));
+            renderWorkoutMenuManagement();
+            renderWorkoutChecklist();
+        }
+
+        // --- BACKUP & AI EXPORT ---
+        function copyFormattedAIPrompt() {
+            const payload = {
+                targets,
+                weights: [...weights].sort((a,b) => new Date(a.date) - new Date(b.date)),
+                runs: [...runs].sort((a,b) => new Date(a.date) - new Date(b.date)),
+                workouts
+            };
+
+            const promptText = `以下は私のランニング・体重・筋トレの記録データです。このデータをもとに、現在の進捗状況、疲労傾向、トレーニングの改善点、目標達成へのアドバイスを教えてください。\n\n\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\``;
+
+            navigator.clipboard.writeText(promptText).then(() => {
+                alert('AI分析用のテキストをクリップボードにコピーしました！そのままChatGPTなどに貼り付けて送ってください。');
+            }).catch(() => {
+                alert('コピーに失敗しました。手動で書き出してください。');
+            });
+        }
+
+        function exportJSON() {
+            const data = { targets, weights, runs, workouts, workoutMenu };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `fitness_backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+        }
+
+        function exportCSV() {
+            if(runs.length === 0) return alert('ランニングデータがありません');
+            let csv = "日付,距離(km),タイム,平均ペース,平均心拍数,シューズ,RPE,体調,脚の状態,天気,メモ\n";
+            runs.forEach(r => {
+                csv += `"${r.date}","${r.distance || ''}","${r.time || ''}","${r.pace || ''}","${r.hr || ''}","${r.shoes || ''}","${r.rpe || ''}","${r.condition || ''}","${r.legs || ''}","${r.weather || ''}","${(r.notes||'').replace(/"/g, '""')}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `running_log_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        function importJSON(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if(data.targets) localStorage.setItem(KEY_TARGETS, JSON.stringify(data.targets));
+                    if(data.weights) localStorage.setItem(KEY_WEIGHTS, JSON.stringify(data.weights));
+                    if(data.runs) localStorage.setItem(KEY_RUNS, JSON.stringify(data.runs));
+                    if(data.workouts) localStorage.setItem(KEY_WORKOUTS, JSON.stringify(data.workouts));
+                    if(data.workoutMenu) localStorage.setItem(KEY_WORKOUT_MENU, JSON.stringify(data.workoutMenu));
+                    
+                    alert('データを復元しました');
+                    location.reload();
+                } catch(err) {
+                    alert('ファイルの読み込みに失敗しました。正しくないフォーマットです。');
+                }
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
 
