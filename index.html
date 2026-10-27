@@ -855,27 +855,28 @@
             a.click();
         }
 
-        function importJSON(e) {
+       function importJSON(e) {
     const file = e.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (event) => {
         try {
-            let data = JSON.parse(event.target.result);
-
-            // ★ここを追加：Garminの公式JSON（配列データ）だった場合、アプリ用形式に自動変換する
-            if (Array.isArray(data)) {
-                data = {
-                    runs: data.map(item => ({
-                        date: item.startTimeLocal ? item.startTimeLocal.split('T')[0] : '2026-01-01',
-                        distance: item.distance ? Number((item.distance / 1000).toFixed(2)) : 0,
-                        time: item.duration ? `${Math.floor(item.duration / 60)}:${String(Math.floor(item.duration % 60)).padStart(2, '0')}` : '00:00',
-                        avgHeartRate: item.averageHR || 0,
-                        memo: 'Garmin一括インポート'
-                    }))
-                };
-            }
+            const data = JSON.parse(event.target.result);
+            if (data.targets) localStorage.setItem('fitness_targets', JSON.stringify(data.targets));
+            if (data.weights) localStorage.setItem('fitness_weights', JSON.stringify(data.weights));
+            if (data.runs) localStorage.setItem('fitness_runs', JSON.stringify(data.runs));
+            if (data.workouts) localStorage.setItem('fitness_workouts', JSON.stringify(data.workouts));
+            if (data.workoutMenu) localStorage.setItem('fitness_workout_menu', JSON.stringify(data.workoutMenu));
+            
+            alert('データを復元しました！');
+            location.reload();
+        } catch (err) {
+            alert('ファイルの読み込みに失敗しました: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+}
 
             // 既存の復元処理
             if (data.targets) localStorage.setItem('fitness_targets', JSON.stringify(data.targets));
