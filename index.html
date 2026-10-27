@@ -855,48 +855,28 @@
             a.click();
         }
 
-       function importJSON(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+        function importJSON(e) {
+            const file = e.target.files[0];
+            if(!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        try {
-            const data = JSON.parse(event.target.result);
-            if (data.targets) localStorage.setItem('fitness_targets', JSON.stringify(data.targets));
-            if (data.weights) localStorage.setItem('fitness_weights', JSON.stringify(data.weights));
-            if (data.runs) localStorage.setItem('fitness_runs', JSON.stringify(data.runs));
-            if (data.workouts) localStorage.setItem('fitness_workouts', JSON.stringify(data.workouts));
-            if (data.workoutMenu) localStorage.setItem('fitness_workout_menu', JSON.stringify(data.workoutMenu));
-            
-            alert('データを復元しました！');
-            location.reload();
-        } catch (err) {
-            alert('ファイルの読み込みに失敗しました: ' + err.message);
-        }
-    };
-    reader.readAsText(file);
-}
-
-            // 既存の復元処理
-            if (data.targets) localStorage.setItem('fitness_targets', JSON.stringify(data.targets));
-            if (data.weights) localStorage.setItem('fitness_weights', JSON.stringify(data.weights));
-            if (data.runs) localStorage.setItem('fitness_runs', JSON.stringify(data.runs));
-            if (data.workouts) localStorage.setItem('fitness_workouts', JSON.stringify(data.workouts));
-            if (data.workoutMenu) localStorage.setItem('fitness_workout_menu', JSON.stringify(data.workoutMenu));
-            
-            alert('データを復元しました！');
-            location.reload();
-        } catch (err) {
-            alert('ファイルの読み込みに失敗しました: ' + err.message);
-        }
-    };
-    reader.readAsText(file);
-}
-
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if(data.targets) localStorage.setItem(KEY_TARGETS, JSON.stringify(data.targets));
+                    if(data.weights) localStorage.setItem(KEY_WEIGHTS, JSON.stringify(data.weights));
+                    if(data.runs) localStorage.setItem(KEY_RUNS, JSON.stringify(data.runs));
+                    if(data.workouts) localStorage.setItem(KEY_WORKOUTS, JSON.stringify(data.workouts));
+                    if(data.workoutMenu) localStorage.setItem(KEY_WORKOUT_MENU, JSON.stringify(data.workoutMenu));
+                    
+                    alert('データを復元しました');
+                    location.reload();
+                } catch(err) {
+                    alert('ファイルの読み込みに失敗しました。正しくないフォーマットです。');
+                }
+            };
             reader.readAsText(file);
         }
     </script>
 </body>
 </html>
-
